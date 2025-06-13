@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>LeoBot</title>
+  <title>ChatBot</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <style>
     body {
@@ -116,7 +116,7 @@
 </head>
 <body>
   <div class="chat-container">
-    <div class="chat-header" style="background-color: #2563eb; color: white;">LeoBot
+    <div class="chat-header" style="background-color: #2563eb; color: white;">ChatBot
     </div>
     <div class="chat-messages" id="chat-messages"></div>
     <div class="chat-input">
@@ -141,8 +141,6 @@
   appendMessage('bot', botResponse);
 }
 
-    
-
     function appendMessage(sender, text, isFile = false) {
       const chatMessages = document.getElementById('chat-messages');
       const messageDiv = document.createElement('div');
@@ -150,7 +148,8 @@
       if (isFile) {
         messageDiv.innerHTML = `<div class="file-preview">📎 ${text}</div>`;
       } else {
-        messageDiv.innerText = text;
+        // Use innerHTML to render images/tables
+        messageDiv.innerHTML = text;
       }
       chatMessages.appendChild(messageDiv);
       chatMessages.scrollTop = chatMessages.scrollHeight;
