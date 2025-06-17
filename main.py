@@ -33,29 +33,22 @@ IMG_DIR = "static/"  # Directory where images are stored
 @app.post("/chat")
 async def chat(q: Query):
     user_query = q.query.lower().strip()
-    if user_query in ["hello", "hi", "hey"]:
-        return {"answer": "Hello! How can I help you with your documents?"}
+    if user_query in ["hello", "hi", "hey", "greetings", "howdy", "what's up", "sup", "Hi there"]:
+        return {"answer": "Hello! How can I help you?"}
     if "how many documents" in user_query:
-        num_docs = len([f for f in os.listdir(DOCS_DIR) if f.endswith(".docx")])
+        num_docs = len([f for f in os.listdir(DOCS_DIR) if f.lower().endswith(".docx")])
         return {"answer": f"You have {num_docs} documents in your docs folder."}
     docs = retriever.get_relevant_documents(q.query)
     if not docs:
-        # Fallback: let the LLM answer from its general knowledge
         answer = llm(q.query)
-        return {"answer": answer}
+        return {"answer": answer}  # No sources for general LLM answers
     answer = qa.run(q.query)
-    # Check for images/tables in the retrieved content
-    for doc in docs:
-        content = doc.page_content
-        html_parts = []
-        if "[IMAGES]" in content:
-            images = [line for line in content.splitlines() if IMG_DIR in line]
-            for img in images:
-                img_url = img.replace("static/", "/static/")
-                html_parts.append(f'<img src="{img_url}" style="max-width:300px;display:block;margin:10px 0;">')
-        if "[TABLES]" in content:
-            tables = [line for line in content.splitlines() if line.startswith("<table")]
-            html_parts.extend(tables)
-        if html_parts:
-            answer += "<br>" + "".join(html_parts)
+    # Only include sources for the docs actually used
+    top_sources = []
+    for doc in docs[:3]:
+        src = doc.metadata.get("source", "Unknown")
+        if src not in top_sources:
+            top_sources.append(src)
+    sources_str = ", ".join(top_sources)
+    answer += f"<br><br><b>Source:</b> {sources_str}"
     return {"answer": answer}
