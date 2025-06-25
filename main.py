@@ -20,6 +20,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 class Query(BaseModel):
     query: str
+    history: str = ""  # Add this field
  
 embed_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 db = FAISS.load_local("vectorstore/", embed_model, allow_dangerous_deserialization=True)
@@ -34,7 +35,6 @@ IMG_DIR = "static/"  # Directory where images are stored
 @app.post("/chat")
 async def chat(q: Query):
     user_query = q.query.lower().strip()
-    # List of greetings and general questions
     general_questions = [
         "hello", "hi", "hey", "greetings", "howdy", "what's up", "sup", "hi there", "how are you"
     ]
@@ -43,7 +43,15 @@ async def chat(q: Query):
         "please clarify", "can you clarify", "what do you mean", "i don't understand",
         "could you explain", "sure", "okay", "ok", "thanks", "thank you"
     ]
-    if user_query in general_questions or user_query in clarification_phrases:
+    general_knowledge_keywords = [
+        "weather", "ram", "president", "capital", "define", "definition", "who is", "what is", "where is"
+    ]
+    # If the question is general or a clarification, use Mistral (no source)
+    if (
+        user_query in general_questions
+        or user_query in clarification_phrases
+        or any(keyword in user_query for keyword in general_knowledge_keywords)
+    ):
         prompt = (
             "You are a helpful assistant. Answer clearly and concisely.\n"
             f"User: {q.query}\nAssistant:"
@@ -54,7 +62,7 @@ async def chat(q: Query):
         num_docs = len([f for f in os.listdir(DOCS_DIR) if f.lower().endswith(".docx")])
         return {"answer": f"You have {num_docs} documents in your docs folder."}
     docs = retriever.get_relevant_documents(q.query)
-    # If no relevant docs, use Mistral for general knowledge
+    # If no relevant docs, use Mistral (no source)
     if not docs or not docs[0].page_content.strip():
         answer = llm_mistral(q.query)
         return {"answer": answer}
@@ -65,7 +73,8 @@ async def chat(q: Query):
         "If the user asks a general question, answer concisely. "
         "If the user asks about a document, cite the source at the end. "
         "If the question is unclear, politely ask for clarification."
-        f"\n\nContext:\n{context}\n\nUser: {q.query}\nAssistant:"
+        f"\n\nConversation so far:\n{q.history}\n"
+        f"\nContext:\n{context}\n\nUser: {q.query}\nAssistant:"
     )
     answer = llm_ollama(prompt)
     top_source = docs[0].metadata.get("source", "Unknown")
